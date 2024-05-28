@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>User Form</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+      }
+
+      .container {
+        max-width: 600px;
+        margin: 50px auto;
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+
+      h1 {
+        text-align: center;
+        margin-top: 0;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+
+      input[type="text"],
+      input[type="email"],
+      input[type="number"] {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-sizing: border-box;
+      }
+
+      button[type="submit"] {
+        background-color: #4caf50;
+        color: #fff;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      button[type="submit"]:hover {
+        background-color: #45a049;
+      }
+
+      .error {
+        color: #ff0000;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+
+      #response {
+        margin-top: 20px;
+        font-weight: bold;
+        border: 1px solid #ccc;
+        padding: 10px;
+        border-radius: 4px;
+        background-color: #f9f9f9;
+      }
+
+      #actionDropdown {
+        margin-bottom: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>User Management</h1>
+      <div id="errorContainer"></div>
+      <select id="actionDropdown">
+        <option value="select">Select Action</option>
+        <option value="selectAll">Select All</option>
+        <option value="create">Create New</option>
+        <option value="update">Update Data</option>
+        <option value="delete">Delete</option>
+      </select>
+      <form id="userForm" onsubmit="submitForm(event)">
+        <div id="formFields">
+          <div class="form-group">
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" required />
+          </div>
+          <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required />
+          </div>
+        </div>
+        <button type="submit" id="submitButton">Submit</button>
+      </form>
+      <div id="response"></div>
+    </div>
+
+    <script>
+      const apiUrl = "https://tadpole.vivekshukla.workers.dev/users";
+      let currentAction = "create";
+      let currentId = null;
+
+      function validateForm() {
+        const nameInput = document.getElementById("name");
+        const emailInput = document.getElementById("email");
+        const errorContainer = document.getElementById("errorContainer");
+        let hasError = false;
+
+        errorContainer.innerHTML = "";
+
+        if (currentAction === "create" || currentAction === "update") {
+          if (nameInput.value.trim() === "") {
+            showError(errorContainer, "Name is required");
+            hasError = true;
+          }
+
+          if (emailInput.value.trim() === "") {
+            showError(errorContainer, "Email is required");
+            hasError = true;
+          } else if (!isValidEmail(emailInput.value.trim())) {
+            showError(errorContainer, "Invalid email address");
+            hasError = true;
+          }
+        }
+
+        return !hasError;
+      }
+
+      function showError(container, message) {
+        const errorDiv = document.createElement("div");
+        errorDiv.className = "error";
+        errorDiv.textContent = message;
+        container.appendChild(errorDiv);
+      }
+
+      function isValidEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+      }
+
+      function submitForm(event) {
+        event.preventDefault();
+
+        if (validateForm()) {
+          const formData = {
+            name: document.getElementById("name").value.trim(),
+            email: document.getElementById("email").value.trim(),
+          };
+
+          let method, url;
+
+          switch (currentAction) {
+            case "selectAll":
+              method = "GET";
+              url = apiUrl;
+              break;
+            case "create":
+              method = "POST";
+              url = apiUrl;
+              break;
+            case "update":
+              method = "PUT";
+              url = `${apiUrl}/${currentId}`;
+              break;
+            case "delete":
+              method = "DELETE";
+              url = `${apiUrl}/${currentId}`;
+              break;
+            default:
+              return;
+          }
+
+          const requestOptions = {
+            method: method,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          };
+
+          if (method === "PUT" || method === "POST") {
+            requestOptions.body = JSON.stringify(formData);
+          }
+
+          fetch(url, requestOptions)
+            .then((response) => response.json())
+            .then((data) => {
+              const responseContainer = document.getElementById("response");
+              displayResponse(responseContainer, data);
+            })
+            .catch((error) => {
+              const responseContainer = document.getElementById("response");
+              responseContainer.textContent = "Error: " + error.message;
+            });
+        }
+      }
+
+      function displayResponse(container, data) {
+        if (currentAction === "selectAll") {
+          container.innerHTML = "";
+          data.forEach((user) => {
+            const userDiv = document.createElement("div");
+            userDiv.style.backgroundColor = "#f2f2f2";
+            userDiv.style.padding = "10px";
+            userDiv.style.marginBottom = "10px";
+            userDiv.style.borderRadius = "4px";
+            userDiv.innerHTML = `
+                    <p>ID: ${user.id}</p>
+                    <p>Name: ${user.name}</p>
+                    <p>Email: ${user.email}</p>
+                `;
+            container.appendChild(userDiv);
+          });
+        } else {
+          container.textContent = JSON.stringify(data, null, 2);
+        }
+      }
+
+      const actionDropdown = document.getElementById("actionDropdown");
+      const nameInput = document.getElementById("name");
+      const emailInput = document.getElementById("email");
+      const submitButton = document.getElementById("submitButton");
+      const formFields = document.getElementById("formFields");
+
+      actionDropdown.addEventListener("change", (event) => {
+        currentAction = event.target.value;
+
+        if (currentAction === "update" || currentAction === "delete") {
+          if (!document.getElementById("idInput")) {
+            const idInput = document.createElement("input");
+            idInput.type = "number";
+            idInput.placeholder = "Enter User ID";
+            idInput.id = "idInput";
+            idInput.required = true;
+            idInput.style.marginBottom = "10px";
+            document
+              .getElementById("userForm")
+              .insertBefore(idInput, formFields);
+
+            idInput.addEventListener("input", (event) => {
+              currentId = event.target.value;
+            });
+          }
+        } else {
+          const idInput = document.getElementById("idInput");
+          if (idInput) {
+            idInput.remove();
+            currentId = null;
+          }
+        }
+
+        if (currentAction === "create" || currentAction === "update") {
+          nameInput.disabled = false;
+          emailInput.disabled = false;
+          nameInput.value = "";
+          emailInput.value = "";
+        } else if (currentAction === "delete") {
+          nameInput.disabled = true;
+          emailInput.disabled = true;
+          formFields.style.display = "none";
+        } else {
+          formFields.style.display = "block";
+          nameInput.disabled = true;
+          emailInput.disabled = true;
+          nameInput.value = "";
+          emailInput.value = "";
+          if (currentAction === "selectAll") {
+            fetch(apiUrl)
+              .then((response) => response.json())
+              .then((data) => {
+                const responseContainer = document.getElementById("response");
+                displayResponse(responseContainer, data);
+              })
+              .catch((error) => {
+                const responseContainer = document.getElementById("response");
+                responseContainer.textContent = "Error: " + error.message;
+              });
+          }
+        }
+      });
+
+      actionDropdown.dispatchEvent(new Event("change"));
+    </script>
+  </body>
+</html>
